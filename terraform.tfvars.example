@@ -1,0 +1,21 @@
+aws_region     = "eu-west-2"
+cluster_name   = "zero-cluster"
+vpc_cidr_block = "10.0.0.0/16"
+
+availability_zones = [
+  "eu-west-2a",
+  "eu-west-2b",
+  "eu-west-2c",
+]
+
+nodes_total         = 3
+instance_type       = "m6i.large"
+data_volume_size_gb = 100
+data_volume_type    = "gp3"
+
+elasticsearch_version = "9.4.4"
+elasticsearch_arch    = "linux-aarch64"
+
+default_tags = {
+  Project = "Zero-Project"
+}

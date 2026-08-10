@@ -1,0 +1,14 @@
+---
+description: Universal constraints to prevent over-engineering and bloated code.
+alwaysApply: true
+---
+# Global AI Behavior Rules
+
+## Code Style & Scope
+- **Write Minimal Code:** Never generate supplementary or "nice-to-have" infrastructure, variables, or scripts unless explicitly requested. Give me exactly what I asked for and nothing more.
+- **No Placeholders:** Do not write code with `// TODO: implement later` or `YOUR_ACCOUNT_ID_HERE`. If data is missing, ask me for it or use a configurable variable.
+- **Explain the "Why":** When you provide a code snippet, include a brief 2-sentence explanation of *why* you chose that specific AWS configuration pattern.
+
+## Architecture Context
+- We are building a **Stateful, Spot-based cluster** using an "ASG of 1" pattern mapped to single Availability Zones.
+- Never suggest generic multi-AZ autoscaling fleets. We prioritize state identity over fluid scaling.

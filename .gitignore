@@ -1,0 +1,20 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+!terraform.tfvars.example
+.tfvars.json
+*.tfplan
+
+# Local / editor
+*.swp
+*~
+.DS_Store

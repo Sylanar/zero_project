@@ -1,0 +1,15 @@
+---
+description: Standards for AWS Infrastructure as Code using Terraform.
+globs: "**/*.tf"
+alwaysApply: false
+---
+# Terraform & AWS Best Practices
+
+## Strict Standards
+- **Always use Launch Templates:** Never suggest the deprecated `aws_launch_configuration` resource.
+- **Tag Everything:** Every AWS resource that supports tags must include a `Project = "Spot-Stateful-Cluster"` tag.
+- **Explicit Provider Versions:** Assume AWS Provider version `~> 5.0` syntax.
+- **Least Privilege IAM:** When generating IAM policies for SSM or EventBridge, strictly scope permissions to the exact target resources. Never use `Resource = "*"`.
+
+## Anti-Patterns to REJECT
+- If the prompt asks for an instance replacement strategy, **do not** write default rollout policies that terminate before launching, as it breaks stateful disk mapping.
