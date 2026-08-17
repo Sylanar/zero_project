@@ -27,3 +27,18 @@ output "interface_vpc_endpoint_ids" {
   description = "Map of interface VPC endpoint service short name to endpoint ID."
   value       = { for k, ep in aws_vpc_endpoint.interface : k => ep.id }
 }
+
+output "s3_vpc_endpoint_id" {
+  description = "ID of the S3 gateway VPC endpoint."
+  value       = aws_vpc_endpoint.s3.id
+}
+
+output "public_subnet_id" {
+  description = "Public subnet ID for the ingest gateway (null when enable_public_subnet is false)."
+  value       = try(aws_subnet.public[0].id, null)
+}
+
+output "internet_gateway_id" {
+  description = "Internet gateway ID (null when enable_public_subnet is false)."
+  value       = try(aws_internet_gateway.this[0].id, null)
+}

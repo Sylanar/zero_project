@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Run on an Elasticsearch node (SSM / shell), not from your laptop.
+# Lists cluster nodes via local HTTPS using the node cert name.
+set -euo pipefail
+
+source /opt/zero/node.env
+
+if [[ "${ES_SECRETS_BACKEND:-secretsmanager}" == "s3" ]]; then
+  PASSWORD="$(aws s3 cp "${ES_BOOTSTRAP_S3_URI}" - --region "${AWS_REGION}")"
+else
+  PASSWORD="$(aws secretsmanager get-secret-value \
+    --region "${AWS_REGION}" \
+    --secret-id "${ES_BOOTSTRAP_SECRET_ARN}" \
+    --query SecretString --output text)"
+fi
+
+curl --cacert /data/elasticsearch/config/certs/ca.crt \
+  --resolve "${ES_NODE_NAME}:9200:127.0.0.1" \
+  -u "elastic:${PASSWORD}" \
+  "https://${ES_NODE_NAME}:9200/_cat/nodes?v"

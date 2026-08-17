@@ -1,0 +1,105 @@
+# Copy to terraform.tfvars and edit. Never commit terraform.tfvars.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Quick path: set aws_profile / aws_region / ingest_client_cidrs, then
+#   terraform init && terraform apply
+#   ../scripts/test_elasticsearch_connection.sh
+
+# -----------------------------------------------------------------------------
+# AWS / project
+# -----------------------------------------------------------------------------
+
+# Shared credentials profile (or export AWS_PROFILE instead).
+aws_profile = "default"
+aws_region  = "eu-west-2"
+
+# Prefix for resource names and tags (bucket, ASGs, secrets, …).
+cluster_name = "zero-cluster"
+
+# prod = multi-AZ VPC endpoints + Secrets Manager + EventBridge/SSM eviction
+# dev  = single-AZ ec2 endpoint + secrets on S3 + IMDS eviction poller + optional ingest gateway
+environment = "dev"
+
+default_tags = {
+  Project = "Zero-Project"
+}
+
+# -----------------------------------------------------------------------------
+# Network
+# -----------------------------------------------------------------------------
+
+vpc_cidr_block = "10.0.0.0/16"
+
+# One private subnet (and typically one ASG-of-1) per AZ.
+availability_zones = [
+  "eu-west-2a",
+  "eu-west-2b",
+  "eu-west-2c",
+]
+
+# -----------------------------------------------------------------------------
+# Elasticsearch
+# -----------------------------------------------------------------------------
+
+elasticsearch_version = "9.4.4"
+# Must match instance architecture (Graviton → linux-aarch64).
+elasticsearch_arch = "linux-aarch64"
+
+# Bootstrap voting set when dedicated_masters is false.
+# Do not change after the cluster has formed.
+# Ignored when dedicated_masters is true (masters are master-00.. per AZ).
+es_initial_master_nodes = ["node-00", "node-01", "node-02"]
+
+# -----------------------------------------------------------------------------
+# Nodes (ASG-of-1 per identity, pinned to one AZ for EBS affinity)
+# -----------------------------------------------------------------------------
+
+# If true: one On-Demand dedicated master per AZ; nodes_total are data/ingest only.
+# If false: nodes_total are all-in-one (master + data + ingest).
+dedicated_masters    = false
+master_instance_type = "t4g.medium"
+
+nodes_total   = 5
+instance_type = "m6g.large"
+
+# Same-AZ Spot pools (order = preference with capacity-optimized-prioritized).
+# Empty list falls back to [instance_type].
+# Refresh candidates: ../scripts/spot_instance_types.sh --top 5 --vcpus 2 --memory-gib 8
+spot_instance_types = [
+  "m6g.large",
+  "t4g.large",
+  "m7g.large",
+  "c7g.large",
+]
+spot_allocation_strategy = "capacity-optimized-prioritized"
+
+data_volume_size_gb = 100
+data_volume_type    = "gp3"
+# AMI root disk (gp3). 8 GiB is typically the cheapest usable size for AL2023.
+root_volume_size_gb = 8
+
+# -----------------------------------------------------------------------------
+# Spot eviction (graceful drain)
+# -----------------------------------------------------------------------------
+
+# Second concurrent Spot eviction waits this long (or until the first node
+# rejoins) before shutting down. Spot warning is ~120s; shutdown needs ~40s.
+eviction_lock_wait_seconds = 60
+
+# -----------------------------------------------------------------------------
+# Dev ingest gateway (Filebeat / Logstash / humans)
+# -----------------------------------------------------------------------------
+
+# Non-empty list in environment=dev creates a t4g.nano + Elastic IP that
+# TCP-proxies :9200 to a live data node. Empty skips the gateway (cheaper).
+# Use your current public IPv4 as /32. Update and re-apply if your IP changes.
+#
+# Clients: https://<ingest_gateway_public_ip>:9200
+#   ssl.verification_mode: certificate   # node cert CN is node-XX, not the EIP
+#   ssl.certificate_authorities: [ca.crt]
+# Smoke test: ../scripts/test_elasticsearch_connection.sh
+ingest_client_cidrs = [
+  # "203.0.113.10/32",
+]
+# ingest_gateway_instance_type = "t4g.nano"

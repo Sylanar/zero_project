@@ -1,6 +1,5 @@
 # Terraform
-.terraform/
-.terraform.lock.hcl
+**/.terraform/
 *.tfstate
 *.tfstate.*
 crash.log
@@ -10,9 +9,12 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 *.tfvars
-!terraform.tfvars.example
-.tfvars.json
+!terraform/terraform.tfvars.example
+*.tfvars.json
 *.tfplan
+
+# Local Elasticsearch CA pulled by scripts/test_elasticsearch_connection.sh
+ca.crt
 
 # Local / editor
 *.swp

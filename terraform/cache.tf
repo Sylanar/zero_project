@@ -5,10 +5,20 @@ locals {
   elasticsearch_filename = "elasticsearch-${var.elasticsearch_version}-${var.elasticsearch_arch}.tar.gz"
   elasticsearch_url      = "https://artifacts.elastic.co/downloads/elasticsearch/${local.elasticsearch_filename}"
   elasticsearch_s3_key   = "elasticsearch/${local.elasticsearch_filename}"
+
+  discovery_ec2_filename = "discovery-ec2-${var.elasticsearch_version}.zip"
+  discovery_ec2_url      = "https://artifacts.elastic.co/downloads/elasticsearch-plugins/discovery-ec2/${local.discovery_ec2_filename}"
+  discovery_ec2_s3_key   = "elasticsearch/${local.discovery_ec2_filename}"
+
+  eviction_lock_s3_key = "locks/eviction.lock"
+
+  eviction_log_s3_prefix = "logs/eviction"
 }
 
 resource "aws_s3_bucket" "cache" {
   bucket = "${var.cluster_name}-cache-${data.aws_caller_identity.current.account_id}"
+  # Artifact cache only — empty the bucket on destroy so seed objects do not block teardown.
+  force_destroy = true
 
   tags = {
     Name = "${var.cluster_name}-cache"
@@ -49,6 +59,39 @@ resource "terraform_data" "seed_elasticsearch" {
       AWS_DEFAULT_REGION = var.aws_region
       SRC_URL            = local.elasticsearch_url
       DEST_URI           = "s3://${aws_s3_bucket.cache.id}/${local.elasticsearch_s3_key}"
+    }
+
+    command = <<-EOT
+      set -euo pipefail
+      TMP="$(mktemp)"
+      trap 'rm -f "$TMP"' EXIT
+      echo "Downloading $SRC_URL"
+      curl -fsSL -o "$TMP" "$SRC_URL"
+      echo "Uploading to $DEST_URI"
+      aws s3 cp "$TMP" "$DEST_URI"
+    EOT
+  }
+
+  depends_on = [
+    aws_s3_bucket_public_access_block.cache,
+    aws_s3_bucket_server_side_encryption_configuration.cache,
+  ]
+}
+
+# ES 9 does not bundle discovery-ec2; cache the plugin zip for offline install.
+resource "terraform_data" "seed_discovery_ec2" {
+  input = {
+    url    = local.discovery_ec2_url
+    bucket = aws_s3_bucket.cache.id
+    key    = local.discovery_ec2_s3_key
+  }
+
+  provisioner "local-exec" {
+    environment = {
+      AWS_PROFILE        = var.aws_profile
+      AWS_DEFAULT_REGION = var.aws_region
+      SRC_URL            = local.discovery_ec2_url
+      DEST_URI           = "s3://${aws_s3_bucket.cache.id}/${local.discovery_ec2_s3_key}"
     }
 
     command = <<-EOT

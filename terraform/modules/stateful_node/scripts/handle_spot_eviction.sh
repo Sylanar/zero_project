@@ -13,7 +13,24 @@ fi
 MOUNT_POINT="${MOUNT_POINT:-/data}"
 SCRIPT_DIR="/opt/zero"
 
-echo "Starting Spot eviction handler (mount=${MOUNT_POINT})"
+log_eviction() {
+  if [[ -x "${SCRIPT_DIR}/log_eviction_event.sh" ]]; then
+    "${SCRIPT_DIR}/log_eviction_event.sh" "$@" || true
+  fi
+}
+
+TOKEN="$(curl -sS -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 60")"
+imds() {
+  curl -sS -H "X-aws-ec2-metadata-token: ${TOKEN}" "http://169.254.169.254${1}"
+}
+
+INSTANCE_ID="$(imds /latest/meta-data/instance-id)"
+REGION="$(imds /latest/meta-data/placement/region)"
+export INSTANCE_ID
+
+echo "Starting Spot eviction handler (mount=${MOUNT_POINT} instance=${INSTANCE_ID})"
+log_eviction notice
 
 if [[ -x "${SCRIPT_DIR}/shutdown_application.sh" ]]; then
   "${SCRIPT_DIR}/shutdown_application.sh" || true
@@ -29,15 +46,6 @@ if mountpoint -q "${MOUNT_POINT}"; then
 else
   echo "${MOUNT_POINT} not mounted; skipping umount"
 fi
-
-TOKEN="$(curl -sS -X PUT "http://169.254.169.254/latest/api/token" \
-  -H "X-aws-ec2-metadata-token-ttl-seconds: 60")"
-imds() {
-  curl -sS -H "X-aws-ec2-metadata-token: ${TOKEN}" "http://169.254.169.254${1}"
-}
-
-INSTANCE_ID="$(imds /latest/meta-data/instance-id)"
-REGION="$(imds /latest/meta-data/placement/region)"
 
 echo "Terminating ${INSTANCE_ID} in ${REGION}"
 aws ec2 terminate-instances --region "${REGION}" --instance-ids "${INSTANCE_ID}"
